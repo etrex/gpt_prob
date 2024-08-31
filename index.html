@@ -16,7 +16,7 @@
         input, textarea {
             width: 100%;
             padding: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
         /* 按鈕樣式 */
         button {
@@ -51,11 +51,19 @@
         .bottom-space {
             height: 1000px; /* 調整此值以增加或減少底部空白 */
         }
+        /* API 金鑰說明樣式 */
+        .api-key-description {
+            color: #888;
+            font-size: 0.7em;
+            margin-top: 0px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
-    <h1>OpenAI API 請求</h1>
+    <h1>GPT 文字生成過程解析工具</h1>
     <input type="text" id="apiKey" placeholder="輸入您的 API 金鑰">
+    <p class="api-key-description">前往 <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI API 金鑰頁面</a> 取得金鑰。</p>
     <textarea id="systemPrompt" rows="2" placeholder="輸入系統提示（可選）"></textarea>
     <textarea id="input" rows="3" placeholder="輸入您的問題"></textarea>
     <button onclick="sendRequest()">送出請求</button>
