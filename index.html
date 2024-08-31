@@ -27,7 +27,7 @@
             cursor: pointer;
         }
         /* 結果顯示區域樣式 */
-        #result {
+        #result, #decodedResult {
             margin-top: 20px;
             border: 1px solid #ddd;
             padding: 10px;
@@ -47,16 +47,23 @@
             padding: 5px;
             z-index: 1000;
         }
+        /* 新增：底部空白區域 */
+        .bottom-space {
+            height: 1000px; /* 調整此值以增加或減少底部空白 */
+        }
     </style>
 </head>
 <body>
     <h1>OpenAI API 請求</h1>
     <input type="text" id="apiKey" placeholder="輸入您的 API 金鑰">
-    <textarea id="systemPrompt" rows="3" placeholder="輸入系統提示（可選）"></textarea>
-    <textarea id="input" rows="5" placeholder="輸入您的問題"></textarea>
+    <textarea id="systemPrompt" rows="2" placeholder="輸入系統提示（可選）"></textarea>
+    <textarea id="input" rows="3" placeholder="輸入您的問題"></textarea>
     <button onclick="sendRequest()">送出請求</button>
     <div id="result"></div>
     <div id="decodedResult"></div>
+
+    <!-- 新增：底部空白區域 -->
+    <div class="bottom-space"></div>
 
     <script>
         // 宣告全域變數來儲存 API 回應資料
