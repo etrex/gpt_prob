@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPT 文字生成過程解析工具</title>
+    <style>
+        /* 基本頁面樣式 */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        /* 輸入欄位和文本區域樣式 */
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        /* 按鈕樣式 */
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        /* 結果顯示區域樣式 */
+        #result {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            white-space: pre-wrap;
+        }
+        /* Token 樣式 */
+        .token {
+            cursor: pointer;
+            position: relative;
+        }
+        /* 機率表格樣式 */
+        .probability-table {
+            display: none;
+            position: fixed; /* 使表格固定在視窗中 */
+            background-color: white;
+            border: 1px solid black;
+            padding: 5px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <h1>OpenAI API 請求</h1>
+    <input type="text" id="apiKey" placeholder="輸入您的 API 金鑰">
+    <textarea id="systemPrompt" rows="3" placeholder="輸入系統提示（可選）"></textarea>
+    <textarea id="input" rows="5" placeholder="輸入您的問題"></textarea>
+    <button onclick="sendRequest()">送出請求</button>
+    <div id="result"></div>
+    <div id="decodedResult"></div>
+
+    <script>
+        // 宣告全域變數來儲存 API 回應資料
+        let globalData;
+
+        // 發送請求到 OpenAI API 的函數
+        async function sendRequest() {
+            const apiKey = document.getElementById('apiKey').value;
+            const systemPrompt = document.getElementById('systemPrompt').value;
+            const input = document.getElementById('input').value;
+            const resultDiv = document.getElementById('result');
+
+            resultDiv.textContent = '正在處理請求...';
+
+            try {
+                // 準備消息數組
+                const messages = [];
+                if (systemPrompt) {
+                    messages.push({ role: 'system', content: systemPrompt });
+                }
+                messages.push({ role: 'user', content: input });
+
+                // 發送 POST 請求到 OpenAI API
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4',
+                        messages: messages,
+                        logprobs: true,
+                        top_logprobs: 10
+                    })
+                });
+
+                // 將回應資料儲存在全域變數中
+                globalData = await response.json();
+
+                if (response.ok) {
+                    const content = globalData.choices[0].message.content;
+                    const logprobs = globalData.choices[0].logprobs.content;
+
+                    // 生成包含每個 token 的 HTML
+                    let contentHTML = '';
+                    logprobs.forEach((item, index) => {
+                        contentHTML += `<span class="token" data-index="${index}">${item.token}</span>`;
+                    });
+
+                    // 顯示回覆內容
+                    resultDiv.innerHTML = `<p><strong>回覆內容：</strong>${contentHTML}</p>`;
+
+                    // 顯示解碼後的內容
+                    const decodedContent = decodeContent(content);
+                    const decodedResultDiv = document.getElementById('decodedResult');
+                    decodedResultDiv.innerHTML = `<p><strong>解碼後的內容：</strong>${decodedContent}</p>`;
+
+                    // 為每個 token 新增滑鼠懸停事件
+                    document.querySelectorAll('.token').forEach(token => {
+                        token.addEventListener('mouseover', showProbabilityTable);
+                        token.addEventListener('mouseout', hideProbabilityTable);
+                    });
+                } else {
+                    // 顯示錯誤訊息
+                    resultDiv.textContent = `錯誤：${globalData.error.message}`;
+                }
+            } catch (error) {
+                // 捕獲並顯示任何錯誤
+                resultDiv.textContent = `發生錯誤：${error.message}`;
+            }
+        }
+
+        // 新增解碼函數
+        function decodeContent(content) {
+            try {
+                // 嘗試使用 decodeURIComponent
+                return decodeURIComponent(escape(content));
+            } catch (e) {
+                // 如果失敗，使用替代方法
+                return content.replace(/\\x([0-9A-Fa-f]{2})/g, function() {
+                    return String.fromCharCode(parseInt(arguments[1], 16));
+                });
+            }
+        }
+
+        // 顯示機率表格的函數
+        function showProbabilityTable(event) {
+            const index = event.target.dataset.index;
+            const logprobs = globalData.choices[0].logprobs.content[index];
+
+            // 生成機率表格的 HTML
+            let tableHTML = '<table><tr><th>Token</th><th>機率</th></tr>';
+            logprobs.top_logprobs.forEach(prob => {
+                const probability = (Math.exp(prob.logprob) * 100).toFixed(8);
+                tableHTML += `<tr><td>${prob.token}</td><td>${probability}%</td></tr>`;
+            });
+            tableHTML += '</table>';
+
+            // 創建或更新機率表格
+            let probabilityTable = document.getElementById('probabilityTable');
+            if (!probabilityTable) {
+                probabilityTable = document.createElement('div');
+                probabilityTable.id = 'probabilityTable';
+                probabilityTable.className = 'probability-table';
+                document.body.appendChild(probabilityTable);
+            }
+
+            probabilityTable.innerHTML = tableHTML;
+            probabilityTable.style.display = 'block';
+
+            // 設定表格位置
+            const cursorX = event.clientX;
+            const cursorY = event.clientY;
+            probabilityTable.style.left = `${cursorX}px`;
+            probabilityTable.style.top = `${cursorY + 20}px`; // 在游標下方 20 像素
+
+            // 新增滑鼠移動事件監聽器
+            document.addEventListener('mousemove', updateTablePosition);
+        }
+
+        // 更新表格位置的函數
+        function updateTablePosition(event) {
+            const probabilityTable = document.getElementById('probabilityTable');
+            if (probabilityTable) {
+                probabilityTable.style.left = `${event.clientX}px`;
+                probabilityTable.style.top = `${event.clientY + 20}px`;
+            }
+        }
+
+        // 隱藏機率表格的函數
+        function hideProbabilityTable(event) {
+            const probabilityTable = document.getElementById('probabilityTable');
+            if (probabilityTable) {
+                probabilityTable.style.display = 'none';
+            }
+            // 移除滑鼠移動事件監聽器
+            document.removeEventListener('mousemove', updateTablePosition);
+        }
+    </script>
+</body>
+</html>
